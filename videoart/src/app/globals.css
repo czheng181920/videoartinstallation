@@ -1,0 +1,94 @@
+@import 'tailwindcss';
+
+:root {
+  --background: #b7b7b7;
+  --foreground: black;
+}
+
+@font-face {
+  font-family: 'Stellar';
+  src: url('/fonts/PPStellar-Light.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Halogen';
+  src: url('/fonts/HalogenbyPixelSurplus-Regular.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+}
+/* src: url('/fonts/PPStellar-Light.woff') format('woff'); */
+
+@font-face {
+  font-family: 'NidSans';
+  src: url('/fonts/nidsans-webfont.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #f3f4f6;
+    --foreground: black;
+  }
+}
+
+* {
+  font-family: 'NidSans', sans-serif;
+}
+body {
+  background: var(--background);
+  color: var(--foreground);
+  /* font-family: Arial, Helvetica, sans-serif; */
+}
+
+.App {
+  text-align: center;
+  font-family: Arial, sans-serif;
+  padding: 20px;
+}
+
+.option-group {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.option-group label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  cursor: pointer;
+  padding: 10px;
+  width: 200px;
+}
+
+.option-group img {
+  max-width: 100%;
+  height: auto;
+  margin-top: 10px;
+  border-radius: 3px;
+  /* style={{ width: '200px', height: '200px', objectFit: 'cover' }} */
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+}
+
+section,
+h2 {
+  font-size: 2rem;
+  margin-bottom: 2.5rem;
+}
+section {
+  margin: 7rem 3rem;
+  padding: 2rem;
+}
