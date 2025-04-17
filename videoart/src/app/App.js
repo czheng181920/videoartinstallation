@@ -15,6 +15,7 @@ function App() {
   const [startedQuiz, setStartedQuiz] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
   const [isSmiling, setIsSmiling] = useState(false);
+  console.log('Is Smiling:', isSmiling);
 
   // Update responses state on change
   const handleChange = (q, value) => {

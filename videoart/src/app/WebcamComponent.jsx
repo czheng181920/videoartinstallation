@@ -4,13 +4,16 @@ import React, { useRef, useEffect, useState } from 'react';
 import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 
-const WebcamComponent = () => {
+//one prop that is a boolean isSmiling
+const WebcamComponent = (
+  { setIsSmiling } // prop to set the state of isSmiling
+) => {
   const [modelsLoaded, setModelsLoaded] = React.useState(false);
   const [captureVideo, setCaptureVideo] = React.useState(false);
 
   const videoRef = React.useRef();
-  const videoHeight = 480;
-  const videoWidth = 640;
+  const videoHeight = 240;
+  const videoWidth = 320;
   const canvasRef = React.useRef();
 
   React.useEffect(() => {
@@ -85,6 +88,13 @@ const WebcamComponent = () => {
             canvasRef.current,
             resizedDetections
           );
+
+        if (
+          resizedDetections.length > 0 &&
+          resizedDetections[0].expressions.happy > 0.6
+        ) {
+          setIsSmiling(true);
+        }
       }
     }, 100);
   };
@@ -99,7 +109,13 @@ const WebcamComponent = () => {
     <div>
       {captureVideo ? (
         modelsLoaded ? (
-          <div>
+          <div
+            style={{
+              position: 'fixed',
+              top: '0',
+              left: '0',
+            }}
+          >
             <div
               style={{
                 display: 'flex',
