@@ -5,128 +5,157 @@ import Webcam from 'react-webcam';
 import * as faceapi from 'face-api.js';
 
 const WebcamComponent = () => {
-  const webcamRef = useRef(null);
-  const canvasRef = useRef(null);
-  const forwardTimesRef = useRef([]);
-  const [withBoxes, setWithBoxes] = useState(true);
-  const [avgTime, setAvgTime] = useState(0);
-  const [fps, setFps] = useState(0);
+  const [modelsLoaded, setModelsLoaded] = React.useState(false);
+  const [captureVideo, setCaptureVideo] = React.useState(false);
 
-  const MODEL_URL = '/'; // <-- put your models here
+  const videoRef = React.useRef();
+  const videoHeight = 480;
+  const videoWidth = 640;
+  const canvasRef = React.useRef();
 
-  // 1) load models once
-  useEffect(() => {
-    async function loadModels() {
-      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
-      await faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL);
-      startVideo();
-    }
+  React.useEffect(() => {
+    const loadModels = async () => {
+      const MODEL_URL = '/';
+
+      Promise.all([
+        faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+        faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+        faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
+        faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+      ]).then(setModelsLoaded(true));
+    };
     loadModels();
+    startVideo();
   }, []);
 
-  // 2) start webcam + kick off the loop
-  const startVideo = async () => {
-    if (!navigator.mediaDevices?.getUserMedia) return;
-    const stream = await navigator.mediaDevices.getUserMedia({ video: {} });
-    const videoEl = webcamRef.current?.video;
-    if (videoEl) {
-      videoEl.srcObject = stream;
-      videoEl.play();
-      onPlay();
-    }
+  const startVideo = () => {
+    setCaptureVideo(true);
+    navigator.mediaDevices
+      .getUserMedia({ video: { width: 300 } })
+      .then((stream) => {
+        let video = videoRef.current;
+        video.srcObject = stream;
+        video.play();
+      })
+      .catch((err) => {
+        console.error('error:', err);
+      });
   };
 
-  // 3) keep a running window of the last 30 frame times & compute avg / fps
-  function updateTimeStats(timeInMs) {
-    const times = [timeInMs, ...forwardTimesRef.current].slice(0, 30);
-    forwardTimesRef.current = times;
-    const avg = times.reduce((sum, t) => sum + t, 0) / times.length;
-    setAvgTime(Math.round(avg));
-    setFps(Math.round(1000 / avg));
-  }
+  const handleVideoOnPlay = () => {
+    setInterval(async () => {
+      if (canvasRef && canvasRef.current) {
+        // canvasRef.current.innerHTML = faceapi.createCanvasFromMedia(
+        //   videoRef.current
+        // );
+        const displaySize = {
+          width: videoWidth,
+          height: videoHeight,
+        };
 
-  // 4) the “onPlay” loop—detect + draw, then recurse
-  async function onPlay() {
-    console.log('onPlay');
-    const videoEl = webcamRef.current?.video;
-    const canvas = canvasRef.current;
+        faceapi.matchDimensions(canvasRef.current, displaySize);
 
-    if (!(videoEl instanceof HTMLVideoElement)) {
-      console.error('Canvas is not an instance of HTMLCanvasElement');
-      return setTimeout(onPlay, 100);
-    }
-    if (!videoEl || videoEl.paused || videoEl.ended) {
-      return setTimeout(onPlay, 100);
-    }
+        const detections = await faceapi
+          .detectAllFaces(
+            videoRef.current,
+            new faceapi.TinyFaceDetectorOptions()
+          )
+          .withFaceExpressions();
 
-    console.log('onPlay2');
-    // run detection + expressions
-    const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 224 });
-    const ts = Date.now();
-    console.log('getting results....', videoEl, options);
-    const result = await faceapi
-      .detectSingleFace(videoEl, options)
-      .withFaceExpressions();
+        const resizedDetections = faceapi.resizeResults(
+          detections,
+          displaySize
+        );
 
-    console.log('result', result);
-    updateTimeStats(Date.now() - ts);
-
-    const ctx = canvas.getContext('2d');
-    if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (result) {
-      // match video dims, resize detection, then draw
-      faceapi.matchDimensions(canvas, {
-        width: videoEl.videoWidth,
-        height: videoEl.videoHeight,
-      });
-      const resized = faceapi.resizeResults(result, {
-        width: videoEl.videoWidth,
-        height: videoEl.videoHeight,
-      });
-      if (withBoxes) {
-        faceapi.draw.drawDetections(canvas, resized);
+        canvasRef &&
+          canvasRef.current &&
+          canvasRef.current
+            .getContext('2d')
+            .clearRect(0, 0, videoWidth, videoHeight);
+        canvasRef &&
+          canvasRef.current &&
+          faceapi.draw.drawDetections(
+            canvasRef.current,
+            resizedDetections,
+            0.05
+          );
+        canvasRef &&
+          canvasRef.current &&
+          faceapi.draw.drawFaceExpressions(
+            canvasRef.current,
+            resizedDetections
+          );
       }
-      faceapi.draw.drawFaceExpressions(canvas, resized, 0.05);
-    }
+    }, 100);
+  };
 
-    setTimeout(onPlay, 100);
-  }
+  const closeWebcam = () => {
+    videoRef.current.pause();
+    videoRef.current.srcObject.getTracks()[0].stop();
+    setCaptureVideo(false);
+  };
 
   return (
-    <div style={{ position: 'relative', width: 300 }}>
-      <Webcam
-        ref={webcamRef}
-        audio={false}
-        mirrored
-        style={{ width: 300, height: 168 }}
-      />
-      <canvas
-        ref={canvasRef}
-        width={300}
-        height={168}
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          pointerEvents: 'none',
-        }}
-      />
-
-      <div style={{ marginTop: 8 }}>
-        <label>
-          <input
-            type="checkbox"
-            onChange={(e) => setWithBoxes(!e.target.checked)}
-          />{' '}
-          Hide bounding boxes
-        </label>
+    <div>
+      <div style={{ textAlign: 'center', padding: '10px' }}>
+        {captureVideo && modelsLoaded ? (
+          <button
+            onClick={closeWebcam}
+            style={{
+              cursor: 'pointer',
+              backgroundColor: 'green',
+              color: 'white',
+              padding: '15px',
+              fontSize: '25px',
+              border: 'none',
+              borderRadius: '10px',
+            }}
+          >
+            Close Webcam
+          </button>
+        ) : (
+          <button
+            onClick={startVideo}
+            style={{
+              cursor: 'pointer',
+              backgroundColor: 'green',
+              color: 'white',
+              padding: '15px',
+              fontSize: '25px',
+              border: 'none',
+              borderRadius: '10px',
+            }}
+          >
+            Open Webcam
+          </button>
+        )}
       </div>
-      <div>
-        <label>Avg Time: {avgTime} ms</label>
-      </div>
-      <div>
-        <label>FPS: {fps}</label>
-      </div>
+      {captureVideo ? (
+        modelsLoaded ? (
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'center',
+                padding: '10px',
+              }}
+            >
+              <video
+                ref={videoRef}
+                height={videoHeight}
+                width={videoWidth}
+                onPlay={handleVideoOnPlay}
+                style={{ borderRadius: '10px' }}
+              />
+              <canvas ref={canvasRef} style={{ position: 'absolute' }} />
+            </div>
+          </div>
+        ) : (
+          <div>loading...</div>
+        )
+      ) : (
+        <></>
+      )}
     </div>
   );
 };
